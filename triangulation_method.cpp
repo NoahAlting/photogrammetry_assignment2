@@ -57,8 +57,27 @@ bool Triangulation::triangulation(
         std::cerr << "The 2D image points of both images should be equal in size and have at least 8 points!" << std::endl;
     } else {std::cout << "The two 2D image points are equal in size and have at least 8 points. Proceeding..." << std::endl;}
 
+    int num_of_points = points_0.size();
+
     // TODO: Estimate relative pose of two views. This can be subdivided into
+    // prepare W matrix
+    Matrix W(num_of_points, 9, 0.0);
+
+    for (int i = 0 ; i < num_of_points; i++) {
+        double u = points_0[i][0];
+        double up = points_1[i][0];
+        double v = points_0[i][1];
+        double vp = points_1[i][1];
+
+        W.set_row(i, {u*up, v*up, up, u*vp, v*vp, vp, u, v, 1});
+    }
+
     //      - estimate the fundamental matrix F;
+//    Matrix U(num_of_points, num_of_points, 0.0);
+//    Matrix D(num_of_points, 9, 0.0);
+//    Matrix V(9, 9, 0.0);
+//
+//    svd_decompose(W, U, D, V);
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
 
