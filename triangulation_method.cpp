@@ -73,11 +73,14 @@ bool Triangulation::triangulation(
     }
 
     //      - estimate the fundamental matrix F;
-//    Matrix U(num_of_points, num_of_points, 0.0);
-//    Matrix D(num_of_points, 9, 0.0);
-//    Matrix V(9, 9, 0.0);
-//
-//    svd_decompose(W, U, D, V);
+    Matrix U(num_of_points, num_of_points, 0.0);
+    Matrix D(num_of_points, 9, 0.0);
+    Matrix V(9, 9, 0.0);
+
+    svd_decompose(W, U, D, V);
+
+    Vector F = V.get_column(V.cols() - 1);
+        
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
 
