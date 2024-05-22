@@ -16,6 +16,16 @@ Vector minimize_using_svd(Matrix cookies) {
     return V.get_column(V.cols() - 1);
 }
 
+Matrix createM(Matrix K_i, Matrix R_i, Vector3D t_i) {
+    Matrix M_i(3, 4, 0.0);
+    M_i.set_column(0, R_i.get_column(0));
+    M_i.set_column(1, R_i.get_column(1));
+    M_i.set_column(2, R_i.get_column(2));
+    M_i.set_column(3, t_i);
+    M_i = K_i * M_i;
+    return M_i;
+}
+
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
  * @return True on success, otherwise false. On success, the reconstructed 3D points must be written to 'points_3d'
@@ -84,14 +94,6 @@ bool Triangulation::triangulation(
 
     //      - estimate the fundamental matrix F;
     Vector f = minimize_using_svd(W);
-//    Matrix U(num_of_points, num_of_points, 0.0);
-//    Matrix D(num_of_points, 9, 0.0);
-//    Matrix V(9, 9, 0.0);
-//
-//    svd_decompose(W, U, D, V);
-//
-//    Vector f = V.get_column(V.cols() - 1);
-    std::cout << f.size() << std::endl;
 
     Matrix33 F_hat(f[0], f[1], f[2],
              f[3], f[4], f[5],
@@ -106,9 +108,6 @@ bool Triangulation::triangulation(
     D2.set_column(D2.cols() -1, Vector3D(0.0, 0.0, 0.0));
 
     Matrix F = U2 * D2 *V2.transpose();
-
-    // std::cout << "matrix D = " << D2 << std::endl;
-    // std::cout << "matrix F = " << F << std::endl;
 
     //      - compute the essential matrix E;
     Matrix33 K(fx, s, cx,
@@ -146,34 +145,11 @@ bool Triangulation::triangulation(
     M_left[0][0] = 1.0;
     M_left[1][1] = 1.0;
     M_left[2][2] = 1.0;
-
-    Matrix M1(3, 4, 0.0);
-    M1.set_column(0, R1.get_column(0));
-    M1.set_column(1, R1.get_column(1));
-    M1.set_column(2, R1.get_column(2));
-    M1.set_column(3, t1);
-    M1 = K * M1;
-
-    Matrix M2(3, 4, 0.0);
-    M2.set_column(0, R2.get_column(0));
-    M2.set_column(1, R2.get_column(1));
-    M2.set_column(2, R2.get_column(2));
-    M2.set_column(3, t1);
-    M2 = K * M2;
-
-    Matrix M3(3, 4, 0.0);
-    M3.set_column(0, R1.get_column(0));
-    M3.set_column(1, R1.get_column(1));
-    M3.set_column(2, R1.get_column(2));
-    M3.set_column(3, t2);
-    M3 = K * M3;
-
-    Matrix M4(3, 4, 0.0);
-    M4.set_column(0, R2.get_column(0));
-    M4.set_column(1, R2.get_column(1));
-    M4.set_column(2, R2.get_column(2));
-    M4.set_column(3, t2);
-    M4 = K * M4;
+    
+    Matrix M1 = createM(K, R1, t1);
+    Matrix M2 = createM(K, R1, t2);
+    Matrix M3 = createM(K, R2, t1);
+    Matrix M4 = createM(K, R2, t2);
 
     Matrix A1(4* num_of_points, 4, 0.0);
     Matrix A2(4* num_of_points, 4, 0.0);
