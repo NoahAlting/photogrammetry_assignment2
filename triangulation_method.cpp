@@ -79,8 +79,24 @@ bool Triangulation::triangulation(
 
     svd_decompose(W, U, D, V);
 
-    Vector F = V.get_column(V.cols() - 1);
-        
+    Vector f = V.get_column(V.cols() - 1);
+    Matrix33 F_hat(f[0], f[1], f[2],
+             f[3], f[4], f[5],
+             f[6], f[7], f[8]);
+
+    Matrix U2(3, 3, 0.0);
+    Matrix D2(3, 3, 0.0);
+    Matrix V2(3, 3, 0.0);
+
+    svd_decompose(F_hat, U2, D2, V2);
+
+    D2.set_column(D2.cols() -1, Vector3D(0.0, 0.0, 0.0));
+
+    Matrix F = U2 * D2 *V2.transpose();
+
+//    std::cout << "matrix D = " << D2 << std::endl;
+//    std::cout << "matrix F = " << F << std::endl;
+
     //      - compute the essential matrix E;
     //      - recover rotation R and t.
 
