@@ -22,8 +22,8 @@ Matrix createM(Matrix K_i, Matrix R_i, Vector3D t_i) {
     M_i.set_column(1, R_i.get_column(1));
     M_i.set_column(2, R_i.get_column(2));
     M_i.set_column(3, t_i);
-    M_i = K_i * M_i;
-    return M_i;
+    Matrix result = K_i * M_i;
+    return result;
 }
 
 Matrix createA(Vector2D p0, Vector2D p1, Matrix M_i, Matrix M_l) {
@@ -111,15 +111,15 @@ bool Triangulation::triangulation(
                    f[3], f[4], f[5],
                    f[6], f[7], f[8]);
 
-    Matrix U2(3, 3, 0.0);
-    Matrix D2(3, 3, 0.0);
-    Matrix V2(3, 3, 0.0);
+    Matrix U_f(3, 3, 0.0);
+    Matrix D_f(3, 3, 0.0);
+    Matrix V_f(3, 3, 0.0);
 
-    svd_decompose(F_hat, U2, D2, V2);
+    svd_decompose(F_hat, U_f, D_f, V_f);
 
-    D2.set_column(D2.cols() - 1, Vector3D(0.0, 0.0, 0.0));
+    D_f.set_column(D_f.cols() - 1, Vector3D(0.0, 0.0, 0.0));
 
-    Matrix F = U2 * D2 * V2.transpose();
+    Matrix F = U_f * D_f * V_f.transpose();
 
     //      - compute the essential matrix E;
     Matrix33 K(fx, s, cx,
@@ -130,25 +130,25 @@ bool Triangulation::triangulation(
 
     //      - recover rotation R and t.
 
-    Matrix U3(3, 3, 0.0);
-    Matrix D3(3, 3, 0.0);
-    Matrix V3(3, 3, 0.0);
+    Matrix U_e(3, 3, 0.0);
+    Matrix D_e(3, 3, 0.0);
+    Matrix V_e(3, 3, 0.0);
 
-    svd_decompose(E, U3, D3, V3);
+    svd_decompose(E, U_e, D_e, V_e);
 
     Matrix33 W3(0.0, -1.0, 0.0,
                 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0);
 
-    Matrix R1 = determinant(U3 * W3 * V3.transpose()) * U3 * W3 * V3.transpose();
-    Matrix R2 = determinant(U3 * W3.transpose() * V3.transpose()) * U3 * W3.transpose() * V3.transpose();
-    Vector3D t1 = U3.get_column(U3.cols() - 1);
-    Vector3D t2 = -U3.get_column(U3.cols() - 1);
+    Matrix R1 = determinant(U_e * W3 * V_e.transpose()) * U_e * W3 * V_e.transpose();
+    Matrix R2 = determinant(U_e * W3.transpose() * V_e.transpose()) * U_e * W3.transpose() * V_e.transpose();
+    Vector3D t1 = U_e.get_column(U_e.cols() - 1);
+    Vector3D t2 = -U_e.get_column(U_e.cols() - 1);
 
-//    std::cout << "R1 = " << R1 << std::endl;
-//    std::cout << "R2 = " << R2 << std::endl;
-//    std::cout << "t1 = " << t1 << std::endl;
-//    std::cout << "t2 = " << t2 << std::endl;
+    std::cout << "R1 = " << R1 << std::endl;
+    std::cout << "R2 = " << R2 << std::endl;
+    std::cout << "t1 = " << t1 << std::endl;
+    std::cout << "t2 = " << t2 << std::endl;
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
@@ -163,9 +163,9 @@ bool Triangulation::triangulation(
     Matrix M3 = createM(K, R2, t1);
     Matrix M4 = createM(K, R2, t2);
 
-    std::cout << "M = RT check1: " << "M1= " << M1 << "K= " << K << "R1= " << R1 << "t1= " << t1 << std::endl;
 
     for (int i = 0; i < num_of_points; i++) {
+        // not too sure about changing points_0/points_1
         Matrix A_1 = createA(points_0[i], points_1[i], M1, M_left);
         Matrix A_2 = createA(points_0[i], points_1[i], M2, M_left);
         Matrix A_3 = createA(points_0[i], points_1[i], M3, M_left);
@@ -176,21 +176,24 @@ bool Triangulation::triangulation(
         Vector P_3 = minimize_using_svd(A_3);
         Vector P_4 = minimize_using_svd(A_4);
 
-        std::cout << "p " << i << " (M1P1):\t" << M1 * P_1 << std::endl;
-        std::cout << "p " << i << " (M2P2):\t" << M2 * P_2 << std::endl;
-        std::cout << "p " << i << " (M3P3):\t" << M3 * P_3 << std::endl;
-        std::cout << "p " << i << " (M4P4):\t" << M4 * P_4 << std::endl;
-        std::cout << "this should be (points0): " << points_0[i] << std::endl;
-        std::cout << "this should be (points1): " << points_1[i]
-                  << "\n-----------------------------------------------------" << std::endl;
+        Vector4D m1p1 = M1 * P_1;
+        Vector4D m2p2 = M2 * P_2;
+        Vector4D m3p3 = M3 * P_3;
+        Vector4D m4p4 = M4 * P_4;
 
+        if (i < 5) {
+//            std::cout << "A1:\t\t" << A_1 << std::endl;
+//            std::cout << "A2:\t\t" << A_2 << std::endl;
+//            std::cout << "P1:\t\t" << P_1 << std::endl;
+//            std::cout << "P2:\t\t" << P_2 << std::endl;
+            std::cout << "p " << i << " (M1*P1):\t\t" << m1p1.cartesian() << std::endl;
+            std::cout << "p " << i << " (M2*P2):\t\t" << m2p2.cartesian() << std::endl;
+            std::cout << "p " << i << " (M3*P3):\t\t" << m3p3.cartesian() << std::endl;
+            std::cout << "p " << i << " (M4*P4):\t\t" << m4p4.cartesian() << std::endl;
+            std::cout << "this should be (points0): " << points_0[i] << std::endl;
+            std::cout << "\n-----------------------------------------------------" << std::endl;
+        }
     }
-
-
-
-
-
-
 
     // TODO: Don't forget to
     //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
