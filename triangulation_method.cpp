@@ -5,6 +5,16 @@
 
 using namespace easy3d;
 
+Vector minimize_using_svd(Matrix cookies) {
+    int num_rows = cookies.rows();
+    int num_cols = cookies.cols();
+    Matrix U(num_rows, num_rows, 0.0);
+    Matrix D(num_rows, num_cols, 0.0);
+    Matrix V(num_cols, num_cols, 0.0);
+
+    svd_decompose(cookies, U, D, V);
+    return V.get_column(V.cols() - 1);
+}
 
 /**
  * TODO: Finish this function for reconstructing 3D geometry from corresponding image points.
@@ -73,13 +83,16 @@ bool Triangulation::triangulation(
     }
 
     //      - estimate the fundamental matrix F;
-    Matrix U(num_of_points, num_of_points, 0.0);
-    Matrix D(num_of_points, 9, 0.0);
-    Matrix V(9, 9, 0.0);
+    Vector f = minimize_using_svd(W);
+//    Matrix U(num_of_points, num_of_points, 0.0);
+//    Matrix D(num_of_points, 9, 0.0);
+//    Matrix V(9, 9, 0.0);
+//
+//    svd_decompose(W, U, D, V);
+//
+//    Vector f = V.get_column(V.cols() - 1);
+    std::cout << f.size() << std::endl;
 
-    svd_decompose(W, U, D, V);
-
-    Vector f = V.get_column(V.cols() - 1);
     Matrix33 F_hat(f[0], f[1], f[2],
              f[3], f[4], f[5],
              f[6], f[7], f[8]);
@@ -118,8 +131,8 @@ bool Triangulation::triangulation(
 
     Matrix R1 = determinant(U3*W3*V3.transpose()) * U3 * W3 * V3.transpose();
     Matrix R2 = determinant(U3*W3.transpose()*V3.transpose()) * U3 * W3.transpose() * V3.transpose();
-    Vector3D t1 = U3.get_column(U3.cols()-1);
-    Vector3D t2 = - U3.get_column(U3.cols()-1);
+    Vector3D t1 = U3.get_column(U3.cols() - 1);
+    Vector3D t2 = - U3.get_column(U3.cols() - 1);
 
 //    std::cout << "R1 = " << R1 << std::endl;
 //    std::cout << "R2 = " << R2 << std::endl;
@@ -128,42 +141,72 @@ bool Triangulation::triangulation(
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
-    Vector reconstruction_z1(num_of_points);
-    Vector reconstruction_z2(num_of_points);
-    Vector reconstruction_z3(num_of_points);
-    Vector reconstruction_z4(num_of_points);
+
+    Matrix M_left(3, 4, 0.0);
+    M_left[0][0] = 1.0;
+    M_left[1][1] = 1.0;
+    M_left[2][2] = 1.0;
+
+    Matrix M1(3, 4, 0.0);
+    M1.set_column(0, R1.get_column(0));
+    M1.set_column(1, R1.get_column(1));
+    M1.set_column(2, R1.get_column(2));
+    M1.set_column(3, t1);
+    M1 = K * M1;
+
+    Matrix M2(3, 4, 0.0);
+    M2.set_column(0, R2.get_column(0));
+    M2.set_column(1, R2.get_column(1));
+    M2.set_column(2, R2.get_column(2));
+    M2.set_column(3, t1);
+    M2 = K * M2;
+
+    Matrix M3(3, 4, 0.0);
+    M3.set_column(0, R1.get_column(0));
+    M3.set_column(1, R1.get_column(1));
+    M3.set_column(2, R1.get_column(2));
+    M3.set_column(3, t2);
+    M3 = K * M3;
+
+    Matrix M4(3, 4, 0.0);
+    M4.set_column(0, R2.get_column(0));
+    M4.set_column(1, R2.get_column(1));
+    M4.set_column(2, R2.get_column(2));
+    M4.set_column(3, t2);
+    M4 = K * M4;
+
+    Matrix A1(4* num_of_points, 4, 0.0);
+    Matrix A2(4* num_of_points, 4, 0.0);
+    Matrix A3(4* num_of_points, 4, 0.0);
+    Matrix A4(4* num_of_points, 4, 0.0);
 
     for (int i = 0; i < num_of_points; i++) {
-        Vector3D Rt_test1 = R1 * points_0[i].homogeneous() + t1;
-        Vector3D Rt_test2 = R1 * points_0[i].homogeneous() + t2;
-        Vector3D Rt_test3 = R2 * points_0[i].homogeneous() + t1;
-        Vector3D Rt_test4 = R2 * points_0[i].homogeneous() + t2;
+        A1.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
+        A1.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
+        A1.set_row(2, points_1[i][0] * M1.transpose().get_column(2) - M1.transpose().get_column(0));
+        A1.set_row(3, points_1[i][1] * M1.transpose().get_column(2) - M1.transpose().get_column(1));
 
-        reconstruction_z1[i] = Rt_test1[2];
-        reconstruction_z2[i] = Rt_test2[2];
-        reconstruction_z3[i] = Rt_test3[2];
-        reconstruction_z4[i] = Rt_test4[2];
-    }
-    bool case1 = true;
-    bool case2 = true;
-    bool case3 = true;
-    bool case4 = true;
+        A2.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
+        A2.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
+        A2.set_row(2, points_1[i][0] * M2.transpose().get_column(2) - M2.transpose().get_column(0));
+        A2.set_row(3, points_1[i][1] * M2.transpose().get_column(2) - M2.transpose().get_column(1));
 
-    for (int i = 0; i < num_of_points; i++) {
-        if (reconstruction_z1[i] < 0) {
-            case1 = false;
-        }
-        if (reconstruction_z2[i] < 0) {
-            case2 = false;
-        }
-        if (reconstruction_z3[i] < 0) {
-            case3 = false;
-        }
-        if (reconstruction_z4[i] < 0) {
-            case4 = false;
-        }
+        A3.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
+        A3.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
+        A3.set_row(2, points_1[i][0] * M3.transpose().get_column(2) - M3.transpose().get_column(0));
+        A3.set_row(3, points_1[i][1] * M3.transpose().get_column(2) - M3.transpose().get_column(1));
+
+        A4.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
+        A4.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
+        A4.set_row(2, points_1[i][0] * M4.transpose().get_column(2) - M4.transpose().get_column(0));
+        A4.set_row(3, points_1[i][1] * M4.transpose().get_column(2) - M4.transpose().get_column(1));
     }
-    std::cout << "case1=" << case1 << "case2=" << case2 << "case3=" << case3 << "case4=" << case4 << std::endl;
+
+
+
+
+
+
 
     // TODO: Don't forget to
     //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
@@ -177,3 +220,4 @@ bool Triangulation::triangulation(
     //          - encountered failure in any step.
     return points_3d.size() > 0;
 }
+
