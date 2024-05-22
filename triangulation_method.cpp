@@ -5,14 +5,14 @@
 
 using namespace easy3d;
 
-Vector minimize_using_svd(Matrix cookies) {
-    int num_rows = cookies.rows();
-    int num_cols = cookies.cols();
+Vector minimize_using_svd(Matrix M) {
+    int num_rows = M.rows();
+    int num_cols = M.cols();
     Matrix U(num_rows, num_rows, 0.0);
     Matrix D(num_rows, num_cols, 0.0);
     Matrix V(num_cols, num_cols, 0.0);
 
-    svd_decompose(cookies, U, D, V);
+    svd_decompose(M, U, D, V);
     return V.get_column(V.cols() - 1);
 }
 
@@ -24,6 +24,15 @@ Matrix createM(Matrix K_i, Matrix R_i, Vector3D t_i) {
     M_i.set_column(3, t_i);
     M_i = K_i * M_i;
     return M_i;
+}
+
+Matrix createA(Vector2D p0, Vector2D p1, Matrix M_i, Matrix M_l) {
+    Matrix A(4, 4, 0.0);
+    A.set_row(0, p0[0] * M_l.transpose().get_column(2) - M_l.transpose().get_column(0));
+    A.set_row(1, p0[1] * M_l.transpose().get_column(2) - M_l.transpose().get_column(1));
+    A.set_row(2, p1[0] * M_i.transpose().get_column(2) - M_i.transpose().get_column(0));
+    A.set_row(3, p1[1] * M_i.transpose().get_column(2) - M_i.transpose().get_column(1));
+    return A;
 }
 
 /**
@@ -40,8 +49,7 @@ bool Triangulation::triangulation(
         std::vector<Vector3D> &points_3d,       /// output: reconstructed 3D points
         Matrix33 &R,   /// output: 3 by 3 matrix, which is the recovered rotation of the 2nd camera
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
-) const
-{
+) const {
     /// NOTE: there might be multiple workflows for reconstructing 3D geometry from corresponding image points.
     ///       This assignment uses the commonly used one explained in our lecture.
     ///       It is advised to define a function for the sub-tasks. This way you have a clean and well-structured
@@ -64,7 +72,8 @@ bool Triangulation::triangulation(
                  "\t    - delete ALL unrelated test or debug code and avoid unnecessary output.\n"
                  "\t    - include all the source code (and please do NOT modify the structure of the directories).\n"
                  "\t    - do NOT include the 'build' directory (which contains the intermediate files in a build step).\n"
-                 "\t    - make sure your code compiles and can reproduce your results without ANY modification.\n\n" << std::flush;
+                 "\t    - make sure your code compiles and can reproduce your results without ANY modification.\n\n"
+              << std::flush;
 
 
     //--------------------------------------------------------------------------------------------------------------
@@ -74,8 +83,11 @@ bool Triangulation::triangulation(
     std::cout << "length of points_0 = " << points_0.size() << std::endl;
 
     if (points_0.size() != points_1.size() && points_0.size() < 8) {
-        std::cerr << "The 2D image points of both images should be equal in size and have at least 8 points!" << std::endl;
-    } else {std::cout << "The two 2D image points are equal in size and have at least 8 points. Proceeding..." << std::endl;}
+        std::cerr << "The 2D image points of both images should be equal in size and have at least 8 points!"
+                  << std::endl;
+    } else {
+        std::cout << "The two 2D image points are equal in size and have at least 8 points. Proceeding..." << std::endl;
+    }
 
     int num_of_points = points_0.size();
 
@@ -83,21 +95,21 @@ bool Triangulation::triangulation(
     // prepare W matrix
     Matrix W(num_of_points, 9, 0.0);
 
-    for (int i = 0 ; i < num_of_points; i++) {
+    for (int i = 0; i < num_of_points; i++) {
         double u = points_0[i][0];
         double up = points_1[i][0];
         double v = points_0[i][1];
         double vp = points_1[i][1];
 
-        W.set_row(i, {u*up, v*up, up, u*vp, v*vp, vp, u, v, 1});
+        W.set_row(i, {u * up, v * up, up, u * vp, v * vp, vp, u, v, 1});
     }
 
     //      - estimate the fundamental matrix F;
     Vector f = minimize_using_svd(W);
 
     Matrix33 F_hat(f[0], f[1], f[2],
-             f[3], f[4], f[5],
-             f[6], f[7], f[8]);
+                   f[3], f[4], f[5],
+                   f[6], f[7], f[8]);
 
     Matrix U2(3, 3, 0.0);
     Matrix D2(3, 3, 0.0);
@@ -105,9 +117,9 @@ bool Triangulation::triangulation(
 
     svd_decompose(F_hat, U2, D2, V2);
 
-    D2.set_column(D2.cols() -1, Vector3D(0.0, 0.0, 0.0));
+    D2.set_column(D2.cols() - 1, Vector3D(0.0, 0.0, 0.0));
 
-    Matrix F = U2 * D2 *V2.transpose();
+    Matrix F = U2 * D2 * V2.transpose();
 
     //      - compute the essential matrix E;
     Matrix33 K(fx, s, cx,
@@ -124,14 +136,14 @@ bool Triangulation::triangulation(
 
     svd_decompose(E, U3, D3, V3);
 
-    Matrix33 W3(0.0, -1.0,0.0,
+    Matrix33 W3(0.0, -1.0, 0.0,
                 1.0, 0.0, 0.0,
                 0.0, 0.0, 1.0);
 
-    Matrix R1 = determinant(U3*W3*V3.transpose()) * U3 * W3 * V3.transpose();
-    Matrix R2 = determinant(U3*W3.transpose()*V3.transpose()) * U3 * W3.transpose() * V3.transpose();
+    Matrix R1 = determinant(U3 * W3 * V3.transpose()) * U3 * W3 * V3.transpose();
+    Matrix R2 = determinant(U3 * W3.transpose() * V3.transpose()) * U3 * W3.transpose() * V3.transpose();
     Vector3D t1 = U3.get_column(U3.cols() - 1);
-    Vector3D t2 = - U3.get_column(U3.cols() - 1);
+    Vector3D t2 = -U3.get_column(U3.cols() - 1);
 
 //    std::cout << "R1 = " << R1 << std::endl;
 //    std::cout << "R2 = " << R2 << std::endl;
@@ -145,37 +157,33 @@ bool Triangulation::triangulation(
     M_left[0][0] = 1.0;
     M_left[1][1] = 1.0;
     M_left[2][2] = 1.0;
-    
+
     Matrix M1 = createM(K, R1, t1);
     Matrix M2 = createM(K, R1, t2);
     Matrix M3 = createM(K, R2, t1);
     Matrix M4 = createM(K, R2, t2);
 
-    Matrix A1(4* num_of_points, 4, 0.0);
-    Matrix A2(4* num_of_points, 4, 0.0);
-    Matrix A3(4* num_of_points, 4, 0.0);
-    Matrix A4(4* num_of_points, 4, 0.0);
+    std::cout << "M = RT check1: " << "M1= " << M1 << "K= " << K << "R1= " << R1 << "t1= " << t1 << std::endl;
 
     for (int i = 0; i < num_of_points; i++) {
-        A1.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
-        A1.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
-        A1.set_row(2, points_1[i][0] * M1.transpose().get_column(2) - M1.transpose().get_column(0));
-        A1.set_row(3, points_1[i][1] * M1.transpose().get_column(2) - M1.transpose().get_column(1));
+        Matrix A_1 = createA(points_0[i], points_1[i], M1, M_left);
+        Matrix A_2 = createA(points_0[i], points_1[i], M2, M_left);
+        Matrix A_3 = createA(points_0[i], points_1[i], M3, M_left);
+        Matrix A_4 = createA(points_0[i], points_1[i], M4, M_left);
 
-        A2.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
-        A2.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
-        A2.set_row(2, points_1[i][0] * M2.transpose().get_column(2) - M2.transpose().get_column(0));
-        A2.set_row(3, points_1[i][1] * M2.transpose().get_column(2) - M2.transpose().get_column(1));
+        Vector P_1 = minimize_using_svd(A_1);
+        Vector P_2 = minimize_using_svd(A_2);
+        Vector P_3 = minimize_using_svd(A_3);
+        Vector P_4 = minimize_using_svd(A_4);
 
-        A3.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
-        A3.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
-        A3.set_row(2, points_1[i][0] * M3.transpose().get_column(2) - M3.transpose().get_column(0));
-        A3.set_row(3, points_1[i][1] * M3.transpose().get_column(2) - M3.transpose().get_column(1));
+        std::cout << "p " << i << " (M1P1):\t" << M1 * P_1 << std::endl;
+        std::cout << "p " << i << " (M2P2):\t" << M2 * P_2 << std::endl;
+        std::cout << "p " << i << " (M3P3):\t" << M3 * P_3 << std::endl;
+        std::cout << "p " << i << " (M4P4):\t" << M4 * P_4 << std::endl;
+        std::cout << "this should be (points0): " << points_0[i] << std::endl;
+        std::cout << "this should be (points1): " << points_1[i]
+                  << "\n-----------------------------------------------------" << std::endl;
 
-        A4.set_row(0, points_0[i][0] * M_left.transpose().get_column(2) - M_left.transpose().get_column(0));
-        A4.set_row(1, points_0[i][1] * M_left.transpose().get_column(2) - M_left.transpose().get_column(1));
-        A4.set_row(2, points_1[i][0] * M4.transpose().get_column(2) - M4.transpose().get_column(0));
-        A4.set_row(3, points_1[i][1] * M4.transpose().get_column(2) - M4.transpose().get_column(1));
     }
 
 
