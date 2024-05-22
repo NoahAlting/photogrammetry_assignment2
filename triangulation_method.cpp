@@ -128,6 +128,42 @@ bool Triangulation::triangulation(
 
     // TODO: Reconstruct 3D points. The main task is
     //      - triangulate a pair of image points (i.e., compute the 3D coordinates for each corresponding point pair)
+    Vector reconstruction_z1(num_of_points);
+    Vector reconstruction_z2(num_of_points);
+    Vector reconstruction_z3(num_of_points);
+    Vector reconstruction_z4(num_of_points);
+
+    for (int i = 0; i < num_of_points; i++) {
+        Vector3D Rt_test1 = R1 * points_0[i].homogeneous() + t1;
+        Vector3D Rt_test2 = R1 * points_0[i].homogeneous() + t2;
+        Vector3D Rt_test3 = R2 * points_0[i].homogeneous() + t1;
+        Vector3D Rt_test4 = R2 * points_0[i].homogeneous() + t2;
+
+        reconstruction_z1[i] = Rt_test1[2];
+        reconstruction_z2[i] = Rt_test2[2];
+        reconstruction_z3[i] = Rt_test3[2];
+        reconstruction_z4[i] = Rt_test4[2];
+    }
+    bool case1 = true;
+    bool case2 = true;
+    bool case3 = true;
+    bool case4 = true;
+
+    for (int i = 0; i < num_of_points; i++) {
+        if (reconstruction_z1[i] < 0) {
+            case1 = false;
+        }
+        if (reconstruction_z2[i] < 0) {
+            case2 = false;
+        }
+        if (reconstruction_z3[i] < 0) {
+            case3 = false;
+        }
+        if (reconstruction_z4[i] < 0) {
+            case4 = false;
+        }
+    }
+    std::cout << "case1=" << case1 << "case2=" << case2 << "case3=" << case3 << "case4=" << case4 << std::endl;
 
     // TODO: Don't forget to
     //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
