@@ -171,27 +171,25 @@ bool Triangulation::triangulation(
         Matrix A_3 = createA(points_0[i], points_1[i], M3, M_left);
         Matrix A_4 = createA(points_0[i], points_1[i], M4, M_left);
 
-        Vector P_1 = minimize_using_svd(A_1);
-        Vector P_2 = minimize_using_svd(A_2);
-        Vector P_3 = minimize_using_svd(A_3);
-        Vector P_4 = minimize_using_svd(A_4);
+        Vector3D P_1 = static_cast<Vector4D>(minimize_using_svd(A_1)).cartesian();
+        Vector3D P_2 = static_cast<Vector4D>(minimize_using_svd(A_2)).cartesian();
+        Vector3D P_3 = static_cast<Vector4D>(minimize_using_svd(A_3)).cartesian();
+        Vector3D P_4 = static_cast<Vector4D>(minimize_using_svd(A_4)).cartesian();
 
-        Vector4D m1p1 = M1 * P_1;
-        Vector4D m2p2 = M2 * P_2;
-        Vector4D m3p3 = M3 * P_3;
-        Vector4D m4p4 = M4 * P_4;
+//        Vector4D m1p1 = static_cast<Vector4D>(M1 * P_1).cartesian();
+//        Vector4D m2p2 = M2 * P_2;
+//        Vector4D m3p3 = M3 * P_3;
+//        Vector4D m4p4 = M4 * P_4;
 
         if (i < 5) {
 //            std::cout << "A1:\t\t" << A_1 << std::endl;
 //            std::cout << "A2:\t\t" << A_2 << std::endl;
 //            std::cout << "P1:\t\t" << P_1 << std::endl;
 //            std::cout << "P2:\t\t" << P_2 << std::endl;
-            std::cout << "p " << i << " (M1*P1):\t\t" << m1p1.cartesian() << std::endl;
-            std::cout << "p " << i << " (M2*P2):\t\t" << m2p2.cartesian() << std::endl;
-            std::cout << "p " << i << " (M3*P3):\t\t" << m3p3.cartesian() << std::endl;
-            std::cout << "p " << i << " (M4*P4):\t\t" << m4p4.cartesian() << std::endl;
-            std::cout << "this should be (points0): " << points_0[i] << std::endl;
-            std::cout << "\n-----------------------------------------------------" << std::endl;
+            std::cout << "p " << i << P_1 << std::endl;
+            std::cout << "p " << i << P_2 << std::endl;
+            std::cout << "p " << i << P_3 << std::endl;
+            std::cout << "p " << i << P_4 << std::endl;
         }
     }
 
@@ -207,4 +205,3 @@ bool Triangulation::triangulation(
     //          - encountered failure in any step.
     return points_3d.size() > 0;
 }
-
