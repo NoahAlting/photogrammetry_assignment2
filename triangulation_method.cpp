@@ -219,7 +219,7 @@ bool Triangulation::triangulation(
         std::cout << ">> The principal point should be within the image!" << std::endl;
         return false;
     }
-    std::cout << ">> The principal point is within the image. \t\t\tProceeding..." << std::endl;
+    std::cout << ">> The principal point is within the image. \t\tProceeding..." << std::endl;
 
 
     /** Check if the format of the 2D image points is correct
@@ -232,7 +232,7 @@ bool Triangulation::triangulation(
             return false;
         }
     }
-    std::cout << ">> The format of the 2D image points is correct. \t\tProceeding..." << std::endl;
+    std::cout << ">> The format of the 2D image points is correct. \tProceeding..." << std::endl;
 
     // Check if the 2D image points of both images are equal in size and have at least 8 points
     if (points_0.size() != points_1.size() && points_0.size() < 8) {
@@ -241,7 +241,9 @@ bool Triangulation::triangulation(
         return false;
     }
     else {
-        std::cout << ">> The two 2D image points are equal in size and have at least 8 points. Proceeding..." << std::endl;
+        std::cout << ">> The two 2D image points are equal in size and have at least 8 points."<< std::endl;
+        std::cout << ">> \t\t\t\t\t\t\tProceeding..."<< std::endl;
+
     }
 
     // Initialize the number of points variable
@@ -252,30 +254,30 @@ bool Triangulation::triangulation(
      */
 
     /// Create the normalisation matrices
-    std::cout << "Creating T matrices" << std::endl;
+    std::cout << ">> Creating T matrices" << std::endl;
     Matrix33 T_0 = createT(points_0);
     Matrix33 T_1 = createT(points_1);
-    std::cout << "\t\t\t\t\t\tSucces! Proceeding..." << std::endl;
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..." << std::endl;
 
     /// Normalise the 2D image points
-    std::cout << "Normalizing points" << std::endl;
+    std::cout << ">> Normalizing points" << std::endl;
     std::vector<Vector2D> points_0_normalised = normalize_points(points_0, T_0);
     std::vector<Vector2D> points_1_normalised = normalize_points(points_1, T_1);
-    std::cout << "\t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
 
     /// Prepare W matrix
-    std::cout << "Creating W matrix" << std::endl;
+    std::cout << ">> Creating W matrix" << std::endl;
     /**
      * W is an N x 9 matrix derived from N >= 8 correspondences
      * (In practice, it is often better to use more than eight correspondences and create a
         larger W matrix because it reduces the affects of noisy measurements)
      */
     Matrix W = createW(points_0_normalised, points_1_normalised);
-    std::cout << "\t\tsize W: (" << W.rows() << "," << W.cols() << ")" << std::endl;
-    std::cout << "\t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
+    std::cout << ">> \t\tsize W: (" << W.rows() << "," << W.cols() << ")" << std::endl;
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
 
     /// Prepare F matrix
-    std::cout << "Creating F matrix" << std::endl;
+    std::cout << ">> Creating F matrix" << std::endl;
     /**
      * Minimise W using SVD to find the @estimated_fundamental_matrix_F_hat
      * The SVD decomposition of W is used to find the estimated fundamental matrix F^
@@ -285,11 +287,11 @@ bool Triangulation::triangulation(
      * and they require de-normalisation to obtain the final fundamental matrix
      */
     Matrix F = createF(W, T_0, T_1);
-    std::cout << "\t\tsize F: (" << F.rows() << "," << F.cols() << ")" << std::endl;
-    std::cout << "\t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
+    std::cout << ">> \t\tsize F: (" << F.rows() << "," << F.cols() << ")" << std::endl;
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
 
     /// Prepare E matrix
-    std::cout << "Creating E matrix" << std::endl;
+    std::cout << ">> Creating E matrix" << std::endl;
     /** Compute @Essential_matrix E
      * The Essential matrix is a 3x3 matrix that encapsulates the geometric information between two calibrated views in stereo vision.
      * It has five degrees of freedom (3 for rotation, 2 for translation) and is defined up to scale.
@@ -301,8 +303,8 @@ bool Triangulation::triangulation(
                0, fy, cy,
                0, 0, 1);
     Matrix33 E = K.transpose() * F * K;
-    std::cout << "\t\tsize E: (" << E.rows() << "," << E.cols() << ")" << std::endl;
-    std::cout << "\t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
+    std::cout << ">> \t\tsize E: (" << E.rows() << "," << E.cols() << ")" << std::endl;
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
 
 
 
@@ -326,20 +328,21 @@ bool Triangulation::triangulation(
     /**
      * The four possible solutions for the relative pose are:
      */
+    std::cout << ">> Calculating R1, R2, t1 and t2" << std::endl;
     Matrix R1 = determinant(U_e * W3 * V_e.transpose()) * U_e * W3 * V_e.transpose();
     Matrix R2 = determinant(U_e * W3.transpose() * V_e.transpose()) * U_e * W3.transpose() * V_e.transpose();
 
     Vector3D t1 = U_e.get_column(U_e.cols() - 1);
     Vector3D t2 = -U_e.get_column(U_e.cols() - 1);
+    std::cout << ">> \t\t\t\t\t\tSucces! Proceeding..."<< std::endl;
 
     // Print the results
-    std::cout << ">> Possible solutions for the relative pose are:" << std::endl;
-    std::cout << "\t" << ">> R1 = " << R1 << std::endl;
-    std::cout << "\t" << ">> R2 = " << R2 << std::endl;
-
-    std::cout << "\t" << ">> t1 = " << t1 << std::endl;
-    std::cout << "\t" << ">> t2 = " << t2 << "\n" << std::endl;
-
+//    std::cout << ">> Possible solutions for the relative pose are:" << std::endl;
+//    std::cout << "\t" << ">> R1 = " << R1 << std::endl;
+//    std::cout << "\t" << ">> R2 = " << R2 << std::endl;
+//
+//    std::cout << "\t" << ">> t1 = " << t1 << std::endl;
+//    std::cout << "\t" << ">> t2 = " << t2 << "\n" << std::endl;
 
     Matrix M_left(3, 4, 0.0);
     M_left[0][0] = 1.0;
@@ -352,14 +355,17 @@ bool Triangulation::triangulation(
     Matrix M3 = createM(K, R2, t1);
     Matrix M4 = createM(K, R2, t2);
 
+    std::vector<Matrix> M_options = {M1, M2, M3, M4};
+
     /// Initiate flags for 4 potential world coordinates
     std::vector<bool> world_flags(4, false);
 
     /// Initiate counters for the number of points in the world
     std::vector<int> world_counters(4,0);
 
-    for (int i=0; i < num_of_points; i++){
+    std::cout << ">> Finding correct combination of R and t" << std::endl;
 
+    for (int i=0; i < num_of_points; i++){
         // Construct A matrix for each case
         Matrix A_1 = createA(points_0[i], points_1[i], M1, M_left);
         Matrix A_2 = createA(points_0[i], points_1[i], M2, M_left);
@@ -411,18 +417,21 @@ bool Triangulation::triangulation(
     for (int i = 0; i < world_flags.size(); i++) {
         if (i == max_index) {
             world_flags[i] = true;
+            std::cout << ">> \t\t\t(chosen:"<< i+1 <<"/4)" << "\t\tSucces! Proceeding..."<< std::endl;
+
         }
     }
 
-    for (int i = 0; i < world_counters.size(); i++) {
-        std::cout << "world_counters[" << i << "] = " << world_counters[i] << std::endl;
-    }
+//    for (int i = 0; i < world_counters.size(); i++) {
+//        std::cout << "world_counters[" << i << "] = " << world_counters[i] << std::endl;
+//    }
 
-    for (int i = 0; i <world_flags.size(); i++){
-        std::cout << "world_flags[" << i << "] = " << world_flags[i] << std::endl;
-    }
+//    for (int i = 0; i <world_flags.size(); i++){
+//        std::cout << "world_flags[" << i << "] = " << world_flags[i] << std::endl;
+//    }
 
     // Reconstruct the 3D points
+    std::cout << ">> Reconstructing 3D points" << std::endl;
     for (int i = 0; i < num_of_points; i++) {
 
         if (world_flags[0]) {
@@ -465,6 +474,6 @@ bool Triangulation::triangulation(
     //       There are a few cases you should return 'false' instead, for example:
     //          - function not implemented yet;
     //          - encountered failure in any step.
-
+    std::cout << ">> \t\t\t\t\t\tSucces! \n>> \t\t\t\t\t\tend of reconstruction"<< std::endl;
     return points_3d.size() > 0;
 }
