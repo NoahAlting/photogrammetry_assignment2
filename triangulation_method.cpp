@@ -22,8 +22,8 @@ Vector minimize_using_svd(Matrix M) {
         svd_decompose(M, U, D, V);
 
         // Print the matrix
-    //    std::cout << "Matrix v: " << V.get_column(V.cols() - 1) << std::endl;
-    //    std::cout << "-----------------" << std::endl;
+        //    std::cout << "Matrix v: " << V.get_column(V.cols() - 1) << std::endl;
+        //    std::cout << "-----------------" << std::endl;
 
         Vector V_last = V.get_column(V.cols() - 1);
 
@@ -142,8 +142,8 @@ Matrix33 createT(std::vector<Vector2D> points) {
 
     // construct T
     Matrix33 T(scale, 0, -scale * mean[0],
-                 0, scale,  -scale * mean[1],
-                 0, 0,     1);
+               0, scale,  -scale * mean[1],
+               0, 0,     1);
     return T;
 }
 
@@ -201,7 +201,7 @@ bool Triangulation::triangulation(
         std::vector<Vector3D> &points_3d,       /// output: reconstructed 3D points
         Matrix33 &R,   /// output: 3 by 3 matrix, which is the recovered rotation of the 2nd camera
         Vector3D &t    /// output: 3D vector, which is the recovered translation of the 2nd camera
-    ) const {
+) const {
 
     //--------------------------------------------------------------------------------------------------------------
 
@@ -430,6 +430,10 @@ bool Triangulation::triangulation(
 //        std::cout << "world_flags[" << i << "] = " << world_flags[i] << std::endl;
 //    }
 
+
+    Matrix M_final(3, 4, 0.0);
+
+
     // Reconstruct the 3D points
     std::cout << ">> Reconstructing 3D points" << std::endl;
     for (int i = 0; i < num_of_points; i++) {
@@ -437,6 +441,7 @@ bool Triangulation::triangulation(
         if (world_flags[0]) {
             R = R1;
             t = t1;
+            M_final = M1;
             Matrix A_final = createA(points_0[i], points_1[i], M1, M_left);
             Vector3D P_final = static_cast<Vector4D>(minimize_using_svd(A_final)).cartesian();
             points_3d.push_back(P_final);
@@ -444,6 +449,7 @@ bool Triangulation::triangulation(
         if (world_flags[1]) {
             R = R1;
             t = t2;
+            M_final = M2;
             Matrix A_final = createA(points_0[i], points_1[i], M2, M_left);
             Vector3D P_final = static_cast<Vector4D>(minimize_using_svd(A_final)).cartesian();
             points_3d.push_back(P_final);
@@ -451,6 +457,7 @@ bool Triangulation::triangulation(
         if (world_flags[2]) {
             R = R2;
             t = t1;
+            M_final = M3;
             Matrix A_final = createA(points_0[i], points_1[i], M3, M_left);
             Vector3D P_final = static_cast<Vector4D>(minimize_using_svd(A_final)).cartesian();
             points_3d.push_back(P_final);
@@ -458,22 +465,47 @@ bool Triangulation::triangulation(
         if (world_flags[3]) {
             R = R2;
             t = t2;
+            M_final = M4;
             Matrix A_final = createA(points_0[i], points_1[i], M4, M_left);
             Vector3D P_final = static_cast<Vector4D>(minimize_using_svd(A_final)).cartesian();
             points_3d.push_back(P_final);
         }
     }
 
+    /// @check perform result check by re-projecting points and measuring the error squared
+    Vector2D error_size_cam1 = {0.0, 0.0};
+    Vector2D error_size_cam2 = {0.0, 0.0};
 
-    // TODO: Don't forget to
-    //          - write your recovered 3D points into 'points_3d' (so the viewer can visualize the 3D points for you);
-    //          - write the recovered relative pose into R and t (the view will be updated as seen from the 2nd camera,
-    //            which can help you check if R and t are correct).
-    //       You must return either 'true' or 'false' to indicate whether the triangulation was successful (so the
-    //       viewer will be notified to visualize the 3D points and update the view).
-    //       There are a few cases you should return 'false' instead, for example:
-    //          - function not implemented yet;
-    //          - encountered failure in any step.
+
+    for (int i=0; i < num_of_points; i++){
+
+        Vector3D points_2d_rep_cam1 = M_left * points_3d[i].homogeneous();
+        Vector2D points_2d_rep_cart_cam1 = points_2d_rep_cam1.cartesian();
+        Vector2D error_cam1 = points_2d_rep_cart_cam1 - points_0[i];
+
+        error_size_cam1 = error_size_cam1 + error_cam1;
+
+        Vector3D points_2d_rep_cam2 = M_final * points_3d[i].homogeneous();
+        Vector2D points_2d_rep_cart_cam2 = points_2d_rep_cam2.cartesian();
+        Vector2D error_cam2 = points_2d_rep_cart_cam2 - points_1[i];
+
+        error_size_cam2 = error_size_cam2 + error_cam2;
+
+
+    }
+
+    error_size_cam1 = error_size_cam1 / num_of_points;
+    error_size_cam2 = error_size_cam2 / num_of_points;
+
+    /// Add squared errors
+    Vector2D sum_of_squared_errors = pow(length(error_size_cam1), 2) + pow(length(error_size_cam2), 2);
+
+    ///
+    double error_summed_magnitude = std::sqrt(pow(sum_of_squared_errors[0], 2) + pow(sum_of_squared_errors[1], 2));
+
+    std::cout << "Root Mean Square Error: " << error_summed_magnitude << std::endl;
+
+
     std::cout << ">> \t\t\t\t\t\tSucces! \n>> \t\t\t\t\t\tend of reconstruction"<< std::endl;
     return points_3d.size() > 0;
 }
